@@ -1,0 +1,82 @@
+
+### CRYPT4GH ###
+
+* Encryption :
+============== 
+- Encryption is performed by providing the --inputfile or --inputfilelist parameters to specify the input data 
+- CRYPT4GH will automatically generate output files with the extension ".c4gh" 
+- If --split-header is used, CRYPT4GH will split the headers and generate a ".hd" file for each input
+
+* Decryption :
+============== 
+- Encryption is performed by providing the --inputfile or --inputfilelist parameters to specify the input data (encrypted files)
+- CRYPT4GH will automatically generate decrypted output files after removing the extension ".c4gh" 
+- If --split-header is used, CRYPT4GH will also look for header files (having the ".hd" extension) and decode the input files
+
+* Re-encryption :
+=================
+- The command "reencryptfile" is used to re-encrypt the entire file (might take some time for large files)
+- The command "reencryptheader" is used to only re-encrypt a file's header
+- The "reencryptfile"  command takes an input file (or list) using  --inputfile / --inputfilelist and an output file (or list) using --outputfile / --outputfilelist 
+- The "reencryptheader"  command takes an input header file (or list) using  --inputheader / --inputheaderlist and an output header file (or list) using --outputheader / --outputheaderlist  
+
+- The envirnement variable C4GH_PASSPHRASE can be used to force the same passphrase for multiple files but this solution is not secure !
+
+########## Encrypt/decrypt file with header + payload in the same file (default behaviour of crypt4gh) #########
+
+## encrypt a file
+crypt4gh encrypt --sk alice.sec --recipient_pk bob.pub --inputfile file_R1.fastq.gz 
+
+## decrypt a file 
+crypt4gh decrypt --sk bob.sec --inputfile file_R1.fastq.gz.c4gh
+
+########## Encrypt/decrypt list of files with header + payload in the same file (default behaviour of crypt4gh) #########
+
+## encrypt a list of files 
+crypt4gh encrypt --sk alice.sec --recipient_pk bob.pub --inputfilelist datalist.lst 
+
+## decrypt a list of files 
+crypt4gh decrypt --sk bob.sec --inputfilelist encryptedlist.lst 
+
+
+
+########## Encrypt/decrypt file with header and payload separated  #########
+
+## encrypt a file
+crypt4gh encrypt --sk alice.sec --recipient_pk bob.pub --inputfile file_R1.fastq.gz --split-header
+
+## decrypt a file 
+crypt4gh decrypt --sk bob.sec --inputfile file_R1_data.fastq.gz.c4gh  --split-header
+
+
+########## Encrypt/decrypt list of files with header and payload separated  #########
+
+## encrypt a list of files 
+crypt4gh encrypt --sk alice.sec --recipient_pk bob.pub --inputfilelist datalist.lst  --split-header
+
+## decrypt a list of files 
+crypt4gh decrypt --sk bob.sec --inputfilelist encryptedlist.lst --split-header
+
+
+
+########## Re-encrypt single file (read/write entire file using bob2.pub)  ###########
+
+crypt4gh reencryptfile --sk bob.sec  --recipient_pk bob2.pub --inputfile file_R1.fastq.gz.c4gh --outputfile file_R1_v2.fastq.gz.c4gh
+
+
+########## Re-encrypt list of files (read/write entire file using bob2.pub)  ###########
+
+crypt4gh reencryptfile --sk bob.sec  --recipient_pk bob2.pub --inputfilelist encryptedlist.lst --outputfilelist encryptedlist2.lst
+
+
+########## Re-encrypt single header (read/write header only using bob2.pub) ###########
+
+crypt4gh reencryptheader --sk bob.sec  --recipient_pk bob2.pub --inputheader file_R1_header.fastq.gz.c4gh --outputheader file_R1_header2.fastq.gz.c4gh
+
+
+########## Re-encrypt list of headers (read/write list of headers using bob2.pub) ###########
+
+crypt4gh reencryptheader --sk bob.sec  --recipient_pk bob2.pub --inputheaderlist encryptedlist.lst --outputheaderlist encryptedlist2.lst
+
+
+

@@ -4,6 +4,7 @@
 import os
 import logging
 import io
+import sys 
 import collections
 
 from nacl.bindings import (crypto_aead_chacha20poly1305_ietf_encrypt,
@@ -45,8 +46,10 @@ def _encrypt_segment(data, process, key):
     process(encrypted_data)
 
 
+#196     lib.encrypt(recipient_keys,inputfilename,outputfilename,outputheadername,splitheader,offset = range_start,span = range_s    pan)
+
 @close_on_broken_pipe
-def encrypt(keys, infile, outfile, headerfile=None, offset=0, span=None):
+def encrypt(keys, infname, outfname, outheaderfname=None, splitheader=False, offset=0, span=None):
     '''Encrypt infile into outfile, using the list of keys.
 
 
@@ -56,9 +59,18 @@ def encrypt(keys, infile, outfile, headerfile=None, offset=0, span=None):
     This produces a Crypt4GH file without edit list.
     '''
 
+
+    infile = open(infname, "rb") # open input file
+    outfile = open(outfname, "wb") # open output file 
+
+    headerfile=None
+
+    # if splitting the header is required 
+    if splitheader:
+        headerfile = open(outheaderfname, "wb") # open output header file
+
+
     LOG.info('Encrypting the file')
-    
-    headerfile = headerfile or outfile
 
     # Forward to start position
     LOG.debug("  Start Coordinate: %s", offset)
@@ -93,7 +105,12 @@ def encrypt(keys, infile, outfile, headerfile=None, offset=0, span=None):
     header_bytes = header.serialize(header_packets)
 
     LOG.debug('header length: %d', len(header_bytes))
-    headerfile.write(header_bytes)
+
+    # write header in header file if splitheader = True , else, write it in outputfile
+    if splitheader:
+        headerfile.write(header_bytes)
+    else:
+        outfile.write(header_bytes)
 
     # ...and cue music
     LOG.debug("Streaming content")
@@ -288,9 +305,6 @@ class DecryptedBuffer():
         
     def skip(self, size):
         """Skip size bytes."""
-        if not size:
-            return
-
         assert(size > 0)
         LOG.debug('Skipping %d bytes | Buffer size: %d', size, self.buf_size())
 
@@ -361,13 +375,24 @@ def body_decrypt_parts(infile, session_keys, output, edit_list=None):
 
 
 @close_on_broken_pipe
-def decrypt(keys, infile, outfile, sender_pubkey=None, offset=0, span=None):
+def decrypt(keys, infname, inheaderfname, outfname, splitheader, sender_pubkey=None, offset=0, span=None):
     '''Decrypt infile into outfile, using a given set of keys.
 
     If sender_pubkey is specified, it verifies the provenance of the header.
 
     If no header packet is decryptable, it raises a ValueError
     '''
+
+    infile = open(infname, "rb") # open input file
+    outfile = open(outfname, "wb") # open output file 
+
+    headerfile=None
+
+    # if splitting the header is required, open header file
+    if splitheader:
+        headerfile = open(inheaderfname, "rb") # open input header file
+
+
     LOG.info('Decrypting file | Range: [%s, %s[', offset, offset+span+1 if span else 'EOF')
 
     assert( # Checking the range
@@ -380,8 +405,10 @@ def decrypt(keys, infile, outfile, sender_pubkey=None, offset=0, span=None):
         )
     )
 
-    session_keys, edit_list = header.deconstruct(infile, keys, sender_pubkey=sender_pubkey)
-
+    if splitheader:
+        session_keys, edit_list = header.deconstruct(headerfile, keys, sender_pubkey=sender_pubkey)
+    else:
+        session_keys, edit_list = header.deconstruct(infile, keys, sender_pubkey=sender_pubkey)
     # Infile in now positioned at the beginning of the data portion
 
     # Generator to slice the output
@@ -407,20 +434,21 @@ def decrypt(keys, infile, outfile, sender_pubkey=None, offset=0, span=None):
 
 
 @close_on_broken_pipe
-def reencrypt(keys, recipient_keys, infile, outfile, chunk_size=4096, trim=False, header_only=False):
+def reencrypt(keys, recipient_keys, infname, outfname,splitheader, chunk_size=4096, trim=False):
     '''Extract header packets from infile and generate another one to outfile.
     The encrypted data section is only copied from infile to outfile.'''
+
+    infile = open(infname,"rb")
+    outfile = open(outfname,"wb")
 
     # Decrypt and re-encrypt the header
     header_packets = header.parse(infile)
     packets = header.reencrypt(header_packets, keys, recipient_keys, trim=trim)
     outfile.write(header.serialize(packets))
 
-    # If header-only reencryption, we are done.
-    if header_only:
-        LOG.info(f'Header-only reencryption Successful')
-        return
-
+    if splitheader:
+        LOG.info('Header reencryption Successful')
+        return;
     # Stream the remainder
     LOG.info(f'Streaming the remainder of the file')
     while True:
@@ -429,7 +457,7 @@ def reencrypt(keys, recipient_keys, infile, outfile, chunk_size=4096, trim=False
             break
         outfile.write(data)
 
-    LOG.info('Reencryption Successful')
+    LOG.info('File reencryption Successful')
 
 
 ##############################################################

@@ -65,6 +65,30 @@ def parse(stream):
         yield encrypted_packet_data
 
 
+def deserialize(stream):
+    '''Parses a given stream, verifies it and returns header's encrypted part'''
+
+    buf = bytearray(16)
+    if stream.readinto(buf) != 16:
+        raise ValueError('Header too small')
+
+    # Magic number, 8 bytes
+    magic_number = bytes(buf[:8]) # 8 bytes
+    if magic_number != MAGIC_NUMBER:
+        raise ValueError('Not a CRYPT4GH formatted file')
+
+    # Version, 4 bytes
+    version = int.from_bytes(bytes(buf[8:12]), byteorder='little')
+    if version != VERSION: # only version 1, so far
+        raise ValueError('Unsupported CRYPT4GH version')
+
+    # Packets count
+    packets_count = int.from_bytes(bytes(buf[12:16]), byteorder='little')
+    LOG.debug('This header contains %d packets', packets_count)
+    return bytes(buf),magic_number, version, packets_count
+
+
+
 def serialize(packets):
     '''Serializes header packets to a byte stream'''
     packets = list(packets)
@@ -73,6 +97,9 @@ def serialize(packets):
     if not packets:
         raise ValueError('No packets to serialize')
     packets_count = len(packets)
+    #print(f"Serializing the header ({packets_count} packets)")
+    binl=b''.join( (len(packet) + 4).to_bytes(4,'little') + packet for packet in packets )
+    #print(f"bin list = {binl}")
     LOG.debug('Serializing the header (%d packets)', packets_count)
     return (MAGIC_NUMBER +
             VERSION.to_bytes(4,'little') +
@@ -300,6 +327,28 @@ def decrypt(encrypted_packets, keys, sender_pubkey=None):
 
 
 def deconstruct(infile, keys, sender_pubkey=None):
+    """Retrieve the header from the `infile` stream, and decrypts it.
+
+    Leaves the infile stream right after the header.
+
+    :return: a pair with a list of session keys and a generator of lengths from an edit list (or None if there was no edit list).
+    :rtype: (list of bytes, int generator or None)
+
+    :raises: ValueError if the header could not be decrypted
+    """
+    header_packets = parse(infile)
+    packets, _ = decrypt(header_packets, keys, sender_pubkey=sender_pubkey)  # don't bother with ignored packets
+
+    if not packets: # no packets were decrypted
+        raise ValueError('No supported encryption method')
+
+    data_packets, edit_packet = partition_packets(packets)
+    # Parse returns the session key (since it should be method 0) 
+    session_keys = [parse_enc_packet(packet) for packet in data_packets]
+    edit_list = parse_edit_list_packet(edit_packet) if edit_packet else None
+    return session_keys, edit_list
+
+def deconstruct_header(infile, keys, sender_pubkey=None):
     """Retrieve the header from the `infile` stream, and decrypts it.
 
     Leaves the infile stream right after the header.

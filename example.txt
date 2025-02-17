@@ -1,0 +1,49 @@
+
+
+inputfile=file.fastq.gz
+
+# ====== Encrypt/decrypt/reencrypt file with header split =========
+
+mkdir -p encrypted  encrypted_newheader
+
+# encryption 
+crypt4gh encrypt --sk alice.sec --recipient_pk bob.pub --inputfile ${inputfile} --split-header 
+
+mv  ${inputfile}.* encrypted/
+
+# decryption 
+crypt4gh  decrypt --sk bob.sec --inputfile encrypted/${inputfile}.c4gh --split-header 
+
+# header re-encryption 
+crypt4gh reencryptheader --sk bob.sec  --recipient_pk bob2.pub --inputheader encrypted/${inputfile}.hd --outputheader encrypted_newheader/${inputfile}.hd
+
+# file decryption after header re-encryption 
+cp encrypted/${inputfile}.c4gh encrypted_newheader/${inputfile}.c4gh
+crypt4gh  decrypt --sk bob2.sec --inputfile encrypted_newheader/${inputfile}.c4gh --split-header 
+
+
+# ====== Encrypt/decrypt/reencrypt list of files with header split =========
+
+mkdir -p encrypted  encrypted_newheader
+
+echo "$inputfile" > inputfiles.lst
+echo "encrypted/${inputfile}.c4gh" > encrypted.lst
+echo "encrypted/${inputfile}.hd" > headers.lst 
+echo "encrypted_newheader/${inputfile}.hd" > newheaders.lst
+echo "encrypted_newheader/${inputfile}.c4gh" > newencrypted.lst
+
+# encryption 
+crypt4gh encrypt --sk alice.sec --recipient_pk bob.pub --inputfilelist inputfiles.lst --split-header 
+
+mv  ${inputfile}.* encrypted/
+
+# decryption 
+crypt4gh  decrypt --sk bob.sec --inputfilelist encrypted.lst --split-header 
+
+# header re-encryption 
+crypt4gh reencryptheader --sk bob.sec  --recipient_pk bob2.pub --inputheaderlist headers.lst --outputheaderlist newheaders.lst
+
+# file decryption after header re-encryption 
+cp encrypted/${inputfile}.c4gh encrypted_newheader/${inputfile}.c4gh
+crypt4gh  decrypt --sk bob2.sec --inputfilelist newencrypted.lst --split-header 
+

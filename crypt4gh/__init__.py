@@ -37,9 +37,9 @@ cryptographic file format."""
 
 
 __title__ = 'GA4GH cryptographic utilities'
-__version__ = '1.7' # VERSION in header is 1 (as 4 bytes little endian)
-__author__ = 'Frédéric Haziza'
-__author_email__ = 'frederic.haziza@crg.eu'
+__version__ = '1.6' # VERSION in header is 1 (as 4 bytes little endian)
+__author__ = 'Frédéric Haziza, Ahlem Aloui' # original code written by Frédéric Haziza, then modified by Ahlem Aloui
+__author_email__ = 'frederic.haziza@crg.eu, ahlem.aloui@uni-koeln.de'
 __license__ = 'Apache License 2.0'
 __copyright__ = __title__ + ' @ CRG'
 
@@ -53,5 +53,8 @@ LOG = logging.getLogger(__name__)
 VERSION = 1
 SEGMENT_SIZE = 65536
 
+# Encrypted files and headers extension 
+C4GHEXT=".c4gh"
+HEADEREXT=".hd"
 
 
